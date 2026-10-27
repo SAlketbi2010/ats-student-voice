@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import ts from 'typescript';
+const source=await readFile(new URL('../lib/access.ts',import.meta.url),'utf8');
+const output=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
+const {identity,writeGuard}=await import('data:text/javascript;base64,'+Buffer.from(output).toString('base64'));
+const origin='https://ats-student-voice.sunlitsnipe.chatgpt.site';
+const request=(headers={})=>new Request(origin+'/api/suggestions',{method:'POST',headers});
+assert.equal(writeGuard(request())?.status,401);
+assert.equal(identity(request({'oai-authenticated-user-email':'saeed.h.alketbi@gmail.com'})).admin,false);
+assert.equal(identity(request({'oai-authenticated-user-id':'student','oai-authenticated-user-email':'student@example.com'})).admin,false);
+assert.equal(identity(request({'oai-authenticated-user-id':'owner','oai-authenticated-user-email':'saeed.h.alketbi@gmail.com'})).admin,true);
+assert.equal(writeGuard(request({'oai-authenticated-user-id':'student',origin:'https://other.example'}))?.status,403);
+assert.equal(writeGuard(request({'oai-authenticated-user-id':'student'}))?.status,403);
+assert.equal(writeGuard(request({'oai-authenticated-user-id':'student',origin})),null);
+console.log('Access tests passed: sign-in, owner-only management, and same-origin writes.');
